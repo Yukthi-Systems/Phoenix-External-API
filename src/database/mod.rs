@@ -31,7 +31,7 @@ pub async fn get_api_key_info(db_pool: &PgPool, api_key: &uuid::Uuid) -> Result<
             WHERE api_key = $1
             AND is_active = TRUE
             -- TODO: After adding that field in DB uncomment it here
-            -- AND (expired_at IS NULL OR expired_at > CURRENT_TIMESTAMP)
+            -- AND expired_at > CURRENT_TIMESTAMP
             "#,
             &[&api_key],
         )
