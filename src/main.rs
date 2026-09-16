@@ -1,4 +1,4 @@
-use routes::{health, session};
+use routes::{health, session, organization};
 use actix_web::web::scope as actix_scope;
 use actix_web::middleware::from_fn;
 use actix_web::{App, HttpServer};
@@ -38,12 +38,11 @@ async fn main() -> std::io::Result<()> {
                 .service(session::refresh_key)
                 .service(session::who_am_i)
             )
-            // .service(
-            //     actix_scope("/organization")
-            //     .wrap(from_fn(middleware::auth::auth_check))
-            //     // organization:view
-            //     // .service(organization::get_organization_info)
-            // )
+            .service(
+                actix_scope("/organization")
+                .wrap(from_fn(middleware::auth::auth_check))
+                .service(organization::get_organization_info)
+            )
             // .service(
             //     actix_scope("/domain")
             //     .wrap(from_fn(middleware::auth::auth_check))

@@ -4,7 +4,7 @@ use deadpool_postgres::{
 };
 use crate::models::api_key::ApiSession;
 
-// pub mod api_key;
+pub mod orgs;
 
 
 // DB working state Check
@@ -31,6 +31,7 @@ pub async fn get_api_key_info(db_pool: &PgPool, api_key: &uuid::Uuid) -> Result<
             WHERE api_key = $1
             AND is_active = TRUE
             -- TODO: After adding that field in DB uncomment it here
+            -- TODO: Check if org is active or not too
             -- AND expired_at > CURRENT_TIMESTAMP
             "#,
             &[&api_key],
