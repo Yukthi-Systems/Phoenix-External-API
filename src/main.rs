@@ -1,5 +1,5 @@
+use routes::{health, session};
 use actix_web::web::scope as actix_scope;
-use routes::{health, sample_db, auth};
 use actix_web::middleware::from_fn;
 use actix_web::{App, HttpServer};
 use std::env::var as env_var;
@@ -7,51 +7,85 @@ use actix_cors::Cors;
 
 mod middleware;
 mod database;
+// mod handlers;
 mod models;
 mod routes;
+mod cache;
 mod state;
-mod utils;
 
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let (pg_pool, in_mem_cache, tx) = state::initialize().await;
+    let app_state = state::initialize().await;
 
     // Start the Actix web server
     HttpServer::new(move || {
         App::new()
-            .app_data(pg_pool.clone())
-            .app_data(in_mem_cache.clone())
-            .app_data(tx.clone())
+            .app_data(app_state.clone())
             .wrap(Cors::default()
+                .allowed_methods(vec!["GET", "POST", "PATCH", "PUT", "DELETE"])
                 .allow_any_origin()
-                .allowed_methods(vec!["GET", "POST", "DELETE"])
                 .allow_any_header()
-                .max_age(60)
+                .max_age(420)
             )
             .service(
                 actix_scope("/health")
                 .service(health::api_health_check)
-                .service(health::db_health_check)
-                .service(health::cache_health_check)
-                .service(health::channel_health_check)
             )
             .service(
-                actix_scope("/sample_db")
+                actix_scope("/self")
                 .wrap(from_fn(middleware::auth::auth_check))
-                .service(sample_db::create_note_handler)
-                .service(sample_db::list_notes_handler)
+                .service(session::refresh_key)
+                .service(session::who_am_i)
             )
-            .service(
-                actix_scope("/auth")
-                .service(auth::create_session_handler)
-                .service(
-                    actix_scope("")
-                    .wrap(from_fn(middleware::auth::auth_check))
-                    .service(auth::delete_session_handler)
-                    .service(auth::get_session_handler)
-                )
-            )
+            // .service(
+            //     actix_scope("/organization")
+            //     .wrap(from_fn(middleware::auth::auth_check))
+            //     // organization:view
+            //     // .service(organization::get_organization_info)
+            // )
+            // .service(
+            //     actix_scope("/domain")
+            //     .wrap(from_fn(middleware::auth::auth_check))
+            //     // domain:view, edit
+            //     // .service(domains::total_domains)
+            //     // .service(domains::list_domains)
+            //     // .service(domains::edit_domain)
+            //     // .service(domains::get_domain)
+            // )
+            // .service(
+            //     actix_scope("/identity")
+            //     .wrap(from_fn(middleware::auth::auth_check))
+            //     // identity:view, create, edit, delete
+            //     // .service(identity::total_identities)
+            //     // .service(identity::list_identities)
+            //     // .service(identity::create_identity)
+            //     // .service(identity::update_identity)
+            //     // .service(identity::delete_identity)
+            //     // .service(identity::get_identity)
+            // )
+            // .service(
+            //     actix_scope("/department")
+            //     .wrap(from_fn(middleware::auth::auth_check))
+            //     // department:view, create, edit, delete
+            //     // .service(department::total_departments)
+            //     // .service(department::create_department)
+            //     // .service(department::update_department)
+            //     // .service(department::delete_department)
+            //     // .service(department::list_departments)
+            //     // .service(department::get_department)
+            // )
+            // .service(
+            //     actix_scope("/mailbox")
+            //     .wrap(from_fn(middleware::auth::auth_check))
+            //     // mailbox:view, create, edit, delete
+            //     // .service(mailbox::total_mailboxes)
+            //     // .service(mailbox::list_mailboxes)
+            //     // .service(mailbox::create_mailbox)
+            //     // .service(mailbox::update_mailbox)
+            //     // .service(mailbox::delete_mailbox)
+            //     // .service(mailbox::get_mailbox)
+            // )
     })
     .bind(("0.0.0.0", 8686))?
     .workers(env_var("API_WORKERS_COUNT").unwrap_or("4".to_string()).parse().unwrap())

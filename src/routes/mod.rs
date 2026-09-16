@@ -1,3 +1,2 @@
-pub mod auth;
+pub mod session;
 pub mod health;
-pub mod sample_db;

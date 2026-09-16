@@ -10,101 +10,76 @@ use actix_web::{
     Error,
     web,
 };
-use crate::{
-    models::user::SessionUser,
-    utils::{
-        AppCache,
-        make_key
-    }
-};
+use crate::cache::handler::{get_redis_cache, set_redis_cache};
+use crate::models::api_key::ApiSession;
+use crate::database::get_api_key_info;
+use crate::state::AppState;
 
 
-
-// fn api_key_check(req: &ServiceRequest) -> bool {
-//     const HEADER_NAME: &str = "x-api-key";
-//     const API_KEY: &str = "Neko-Nik";
-
-//     let header_check = req
-//         .headers()
-//         .get(HEADER_NAME)
-//         .and_then(|hv| hv.to_str().ok())
-//         .map(|val| val == API_KEY)
-//         .unwrap_or(false);
-
-//     header_check
-// }
+const MAX_SESSION_DURATION: u64 = 7 * 60 * 60;  // 7 hours in seconds
 
 
-/// Check for valid session based on Session-ID cookie and x-csrf-token header
+/// Check for valid API key based on x-api-key header
 /// Inserts SessionUser into request extensions if valid
 /// Returns true if valid, false otherwise
 async fn session_check(req: &ServiceRequest) -> bool {
-    // Look for Session-ID cookie and x-csrf-token header
-    let session_id = req
-        .cookie("Session-ID")
-        .map(|c| c.value().to_string());
-    let csrf_token = req
+    // Look for X-API-Key header
+    let api_key: Option<uuid::Uuid> = req
         .headers()
-        .get("x-csrf-token")
+        .get("x-api-key")
         .and_then(|hv| hv.to_str().ok())
-        .map(|s| s.to_string());
+        .and_then(|s| uuid::Uuid::parse_str(s).ok());
 
-    // If either is missing, fail
-    if session_id.is_none() || csrf_token.is_none() {
+    // If no session access token, return false
+    if api_key.is_none() {
         return false;
     }
 
     // Check cache for session
-    let cache = req.app_data::<web::Data<AppCache>>().unwrap();
-    let key = make_key(session_id.unwrap());
+    let state = req.app_data::<web::Data<AppState>>().unwrap();
+    let api_key = api_key.unwrap();
 
-    if let Some(user) = cache.get(&key).await {
-        // Convert the JSON string back to SessionUser
-        let user: SessionUser = serde_json::from_str(&user).unwrap();
-        
-        // Verify CSRF token
-        if user.csrf_token != csrf_token.unwrap() {
+    // See if the access token exists in Redis cache and get the associated SessionUser
+    let session_user: Option<ApiSession> = get_redis_cache(state.redis_cache.clone(), &api_key.to_string()).await.unwrap();
+
+    // If session user is not found in cache, check the database
+    if session_user.is_none() {
+        // See if the API key exists in the database
+        let db_session_user = get_api_key_info(&state.pg_pool, &api_key).await.unwrap();
+        if db_session_user.is_none() {
             return false;
         }
+        let db_session_user = db_session_user.unwrap();
 
-        // Insert user into request extensions for further use
-        req.extensions_mut().insert(user);
+        // Insert the database session user into the Redis cache for future requests
+        set_redis_cache(state.redis_cache.clone(), &api_key.to_string(), &db_session_user, MAX_SESSION_DURATION).await.unwrap();
 
-        return true;
+        // Insert the database session user into request extensions for further use
+        req.extensions_mut().insert(db_session_user);
     } else {
-        return false;
+        // If session user is found in cache, use it
+        let session_user = session_user.unwrap();
+        // Insert user into request extensions for further use
+        req.extensions_mut().insert(session_user);
     }
+
+    // If we reach here, the session is valid
+    true
 }
 
 
 /// Authentication middleware
-/// Checks for valid session and optionally API key
 /// Short-circuits with 401 Unauthorized if checks fail
 /// Otherwise calls the next service in the chain
 pub async fn auth_check<B>(req: ServiceRequest, next: Next<B>) -> Result<ServiceResponse, Error>
     where B: MessageBody + 'static
 {
-    // If You need API-Key authentication, uncomment below
-    // if !api_key_check(&req) {
-    //     log::warn!("API key check failed for request {} {}", req.method(), req.path());
-
-    //     // Short-circuit and return 401 Unauthorized
-    //     let resp = HttpResponse::Unauthorized()
-    //         .append_header(("content-type", "text/plain; charset=utf-8"))
-    //         .body("Unauthorized: missing or invalid API key");
-
-    //     // Convert into a ServiceResponse with a boxed body to satisfy types
-    //     return Ok(req.into_response(resp).map_into_boxed_body());
-    // }
-
     // See if session is valid
     if !session_check(&req).await {
-        log::warn!("Session check failed for request {} {}", req.method(), req.path());
-
         // Short-circuit and return 401 Unauthorized
         let resp = HttpResponse::Unauthorized()
             .append_header(("content-type", "text/plain; charset=utf-8"))
-            .body("Unauthorized: invalid session");
+            .body("Unauthorized: Invalid API Key");
 
         // Convert into a ServiceResponse with a boxed body to satisfy types
         return Ok(req.into_response(resp).map_into_boxed_body());

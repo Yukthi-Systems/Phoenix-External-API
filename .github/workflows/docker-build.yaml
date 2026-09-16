@@ -3,12 +3,12 @@ name: Docker Image CI - Build
 on:
   push:
     branches:
-      - "*"
+      - main
     tags:
       - "*"
   pull_request:
     branches:
-      - "*"
+      - main
 
 jobs:
   docker:
@@ -39,5 +39,5 @@ jobs:
           sbom: true
           provenance: true
           tags: |
-            neko7nik/rust-api-template:latest
-            neko7nik/rust-api-template:${{ steps.tag.outputs.TAG }}
+            rjyspl/phoenix-external-api:latest
+            rjyspl/phoenix-external-api:${{ steps.tag.outputs.TAG }}
