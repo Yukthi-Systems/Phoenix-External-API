@@ -8,12 +8,6 @@ services:
       - ENABLE_LOGGING=<ENABLE_LOGGING>
       - RUST_LOG=rust_api=<LOG_LEVEL>
       - API_WORKERS_COUNT=<NUMBER_OF_WORKERS>
-      - ALLOWED_ORIGINS=<YOUR_ALLOWED_ORIGINS>,<YOUR_ALLOWED_ORIGINS_2>
-      - SELF_API_KEY=<SELF_API_KEY>
-      - FILE_STORE_API_KEY=<FILE_STORE_API_KEY>
-      - FILE_STORE_HOST=<FILE_STORE_HOST>
-      - SSO_API_URL=<SSO_API_URL>
-      - SSO_API_KEY=<SSO_API_KEY>
 
       # PostgreSQL Database
       - POSTGRES_DB_URL=postgres://my_user:Password@rust-api-postgres:5432/yfs
@@ -35,6 +29,7 @@ services:
       - RABBITMQ_VIRTUAL_HOST=<RABBITMQ_VIRTUAL_HOST>
       - RABBITMQ_EXCHANGE_NAME=amq.default
       - RABBITMQ_ROUTING_KEY=<RABBITMQ_ROUTING_KEY>
+      - RABBITMQ_MAILBOX_MANAGER_QUEUE=<RABBITMQ_MAILBOX_MANAGER_QUEUE>
 
     networks:
       - phoenix-external-api-network
