@@ -13,8 +13,9 @@ async fn list_departments(request: HttpRequest, query: web::Query<QueryParams>, 
     let ext = request.extensions();
     let session_user = ext.get::<ApiSession>().unwrap();
 
-    // Check if the key has enough permissions to list department information
+    // Check if the key has enough permissions to list department information and validate query parameters
     session_user.has_permissions(&["department:view"])?;
+    query.validate()?;
 
     let departments = list_org_departments(&state.pg_pool, &session_user.organization_id, query.limit, query.offset).await?;
 

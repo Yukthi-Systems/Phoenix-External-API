@@ -1,5 +1,5 @@
+use crate::models::errors::AppError;
 use tokio_postgres::row::Row;
-
 
 pub mod departments;
 pub mod initial;
@@ -53,5 +53,24 @@ impl<T> ListResponse<T> {
             current_page,
             total_pages,
         }
+    }
+}
+
+
+impl QueryParams {
+    pub fn validate(&self) -> Result<(), AppError> {
+        if self.limit <= 0 {
+            return Err(AppError::BadRequest("Limit must be greater than 0".into()));
+        }
+
+        if self.offset < 0 {
+            return Err(AppError::BadRequest("Offset cannot be negative".into()));
+        }
+
+        if self.limit > 100 {
+            return Err(AppError::BadRequest("Limit cannot be greater than 100".into()));
+        }
+
+        Ok(())
     }
 }
