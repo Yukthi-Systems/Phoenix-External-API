@@ -4,6 +4,7 @@ use deadpool_postgres::{
 };
 use crate::models::api_key::ApiSession;
 
+pub mod departments;
 pub mod orgs;
 
 

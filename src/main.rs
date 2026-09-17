@@ -1,4 +1,4 @@
-use routes::{health, session, organization};
+use routes::{health, session, organization, department};
 use actix_web::web::scope as actix_scope;
 use actix_web::middleware::from_fn;
 use actix_web::{App, HttpServer};
@@ -47,7 +47,6 @@ async fn main() -> std::io::Result<()> {
             //     actix_scope("/domain")
             //     .wrap(from_fn(middleware::auth::auth_check))
             //     // domain:view, edit
-            //     // .service(domains::total_domains)
             //     // .service(domains::list_domains)
             //     // .service(domains::edit_domain)
             //     // .service(domains::get_domain)
@@ -56,29 +55,26 @@ async fn main() -> std::io::Result<()> {
             //     actix_scope("/identity")
             //     .wrap(from_fn(middleware::auth::auth_check))
             //     // identity:view, create, edit, delete
-            //     // .service(identity::total_identities)
             //     // .service(identity::list_identities)
             //     // .service(identity::create_identity)
             //     // .service(identity::update_identity)
             //     // .service(identity::delete_identity)
             //     // .service(identity::get_identity)
             // )
-            // .service(
-            //     actix_scope("/department")
-            //     .wrap(from_fn(middleware::auth::auth_check))
-            //     // department:view, create, edit, delete
-            //     // .service(department::total_departments)
-            //     // .service(department::create_department)
-            //     // .service(department::update_department)
-            //     // .service(department::delete_department)
-            //     // .service(department::list_departments)
-            //     // .service(department::get_department)
-            // )
+            .service(
+                actix_scope("/department")
+                .wrap(from_fn(middleware::auth::auth_check))
+                // department:view, create, edit, delete
+                // .service(department::create_department)
+                // .service(department::update_department)
+                // .service(department::delete_department)
+                .service(department::get_department_info)
+                .service(department::list_departments)
+            )
             // .service(
             //     actix_scope("/mailbox")
             //     .wrap(from_fn(middleware::auth::auth_check))
             //     // mailbox:view, create, edit, delete
-            //     // .service(mailbox::total_mailboxes)
             //     // .service(mailbox::list_mailboxes)
             //     // .service(mailbox::create_mailbox)
             //     // .service(mailbox::update_mailbox)
