@@ -56,7 +56,7 @@ async fn main() -> std::io::Result<()> {
                 .service(identity::list_identities)
                 // .service(identity::create_identity)
                 .service(identity::update_identity)
-                // .service(identity::delete_identity)
+                .service(identity::delete_identity)
                 .service(identity::get_identity)
             )
             .service(

@@ -171,3 +171,58 @@ pub async fn update_identity_by_email(
 
     Ok(result)
 }
+
+
+async fn get_associated_services_for_identity(db_pool: &PgPool, email: &str) -> Result<(bool, bool, bool), AppError> {
+    let client = db_pool.get().await?;
+
+    let service_usage = client
+        .query_one(
+            r#"
+            SELECT
+                EXISTS (
+                    SELECT 1 FROM mailboxes WHERE email = $1
+                ) AS has_mailbox,
+                EXISTS (
+                    SELECT 1 FROM chat_users WHERE email = $1
+                ) AS has_chat,
+                EXISTS (
+                    SELECT 1 FROM file_users WHERE email = $1
+                ) AS has_file
+            "#,
+            &[&email],
+        )
+        .await?;
+
+    let has_mailbox: bool = service_usage.get("has_mailbox");
+    let has_chat: bool = service_usage.get("has_chat");
+    let has_file: bool = service_usage.get("has_file");
+
+    Ok((has_mailbox, has_chat, has_file))
+}
+
+
+pub async fn delete_identity_by_email(db_pool: &PgPool, org_id: &Uuid, email_id: &str) -> Result<u64, AppError> {
+    let client = db_pool.get().await?;
+
+    // Make sure there are no associated services for the identity before deleting it
+    let (has_mailbox, has_chat, has_file) = get_associated_services_for_identity(db_pool, email_id).await?;
+    if has_mailbox || has_chat || has_file {
+        return Err(AppError::Conflict("Identity has associated services and cannot be deleted".into()));
+    }
+
+    let result = client
+        .execute(
+            r#"
+            DELETE FROM email_identities
+            USING domains AS d
+            WHERE d.domain_name = email_identities.domain_name
+            AND d.managed_by = $1
+            AND email_identities.email = $2
+            "#,
+            &[org_id, &email_id],
+        )
+        .await?;
+
+    Ok(result)
+}

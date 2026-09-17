@@ -1,5 +1,5 @@
-use crate::database::identities::{list_domain_identities, get_org_identity, update_identity_by_email};
-use actix_web::{HttpMessage, HttpRequest, HttpResponse, get, patch, web};
+use crate::database::identities::{list_domain_identities, get_org_identity, update_identity_by_email, delete_identity_by_email};
+use actix_web::{HttpMessage, HttpRequest, HttpResponse, delete, get, patch, web};
 use crate::database::domains::get_available_domains;
 use crate::models::errors::{ApiResponse, AppError};
 use crate::models::identity::IdentityEditRequest;
@@ -81,6 +81,25 @@ async fn update_identity(request: HttpRequest, body: web::Json<IdentityEditReque
         &edit_request.department_id,
         &edit_request.is_enabled,
     ).await?;
+    if result == 0 {
+        return Err(AppError::NotFound("Identity not found".into()));
+    }
+
+    Ok(HttpResponse::Ok().json(result))
+}
+
+
+#[delete("/delete/{email_id}")]
+async fn delete_identity(request: HttpRequest, path: web::Path<String>, state: web::Data<AppState>) -> ApiResponse {
+    // Get SessionUser from request extensions
+    let ext = request.extensions();
+    let session_user = ext.get::<ApiSession>().unwrap();
+
+    // Check if the key has enough permissions to delete identity information
+    session_user.has_permissions(&["identity:delete"])?;
+
+    let email_id = path.into_inner();
+    let result = delete_identity_by_email(&state.pg_pool, &session_user.organization_id, &email_id).await?;
     if result == 0 {
         return Err(AppError::NotFound("Identity not found".into()));
     }
