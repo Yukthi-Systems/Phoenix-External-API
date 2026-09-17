@@ -78,3 +78,53 @@ pub async fn delete_department_by_id(db_pool: &PgPool, org_id: &Uuid, department
 
     Ok(result)
 }
+
+
+pub async fn create_new_department(
+    db_pool: &PgPool,
+    org_id: &Uuid,
+    department_id: &Uuid,
+    department_name: &str,
+    details: &serde_json::Value,
+) -> Result<u64, AppError> {
+    let client = db_pool.get().await?;
+
+    let result = client
+        .execute(
+            r#"
+            INSERT INTO departments (organization_id, department_id, department_name, details)
+            VALUES ($1, $2, $3, $4)
+            "#,
+            &[org_id, department_id, &department_name, &details],
+        )
+        .await?;
+
+    Ok(result)
+}
+
+
+pub async fn update_department_by_id(
+    db_pool: &PgPool,
+    org_id: &Uuid,
+    department_id: &Uuid,
+    department_name: &str,
+    details: &serde_json::Value,
+) -> Result<u64, AppError> {
+    let client = db_pool.get().await?;
+
+    let result = client
+        .execute(
+            r#"
+            UPDATE departments
+            SET department_name = $1,
+                details = $2,
+                updated_at = NOW()
+            WHERE organization_id = $3
+            AND department_id = $4
+            "#,
+            &[&department_name, &details, org_id, department_id],
+        )
+        .await?;
+
+    Ok(result)
+}

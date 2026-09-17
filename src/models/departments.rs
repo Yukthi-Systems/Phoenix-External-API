@@ -1,5 +1,5 @@
+use serde::{Serialize, Deserialize};
 use tokio_postgres::row::Row;
-use serde::Serialize;
 use uuid::Uuid;
 
 
@@ -14,6 +14,13 @@ pub struct DepartmentInfo {
 
     pub created_at: ChronoUtc,
     pub updated_at: ChronoUtc,
+}
+
+
+#[derive(Deserialize)]
+pub struct DepartmentCreateRequest {
+    pub department_name: String,
+    pub details: serde_json::Value,
 }
 
 
