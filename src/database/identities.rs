@@ -224,6 +224,20 @@ pub async fn delete_identity_by_email(db_pool: &PgPool, org_id: &Uuid, email_id:
         )
         .await?;
 
+    if result != 0 {
+        // Update the ID count to org
+        client
+            .execute(
+                r#"
+                UPDATE organizations
+                SET utilized_email_identities = utilized_email_identities - 1
+                WHERE organization_id = $1
+                "#,
+                &[org_id],
+            )
+            .await?;
+    }
+
     Ok(result)
 }
 
