@@ -11,7 +11,7 @@ on:
       - main
 
 jobs:
-  docker:
+  build:
     runs-on: Dov-Het-Raw
     steps:
       - name: Checkout repository
@@ -41,3 +41,27 @@ jobs:
           tags: |
             rjyspl/phoenix-external-api:latest
             rjyspl/phoenix-external-api:${{ steps.tag.outputs.TAG }}
+
+  deploy:
+    needs: build
+    runs-on: Het-8v-16G
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        uses: webfactory/ssh-agent@v0.5.3
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy to Server
+        env:
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+        run: |
+          # Connect and restart the service
+          ssh -o StrictHostKeyChecking=no root@$SERVER_IP << 'EOF'
+            cd /srv/v3-external-api/main-api
+            docker compose pull
+            docker compose up -d
+            docker ps
+          EOF
