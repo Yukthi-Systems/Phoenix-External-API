@@ -1,8 +1,8 @@
-use crate::database::identities::{list_domain_identities, get_org_identity, update_identity_by_email, delete_identity_by_email, update_identity_password_by_email};
-use actix_web::{HttpMessage, HttpRequest, HttpResponse, delete, get, patch, put, web};
+use crate::database::identities::{list_domain_identities, get_org_identity, update_identity_by_email, delete_identity_by_email, update_identity_password_by_email, create_new_identity};
+use actix_web::{HttpMessage, HttpRequest, HttpResponse, delete, get, patch, post, put, web};
+use crate::models::identity::{IdentityEditRequest, CreateIdentityRequest};
 use crate::database::domains::get_available_domains;
 use crate::models::errors::{ApiResponse, AppError};
-use crate::models::identity::IdentityEditRequest;
 use crate::handlers::auth::PasswordHasher;
 use crate::models::api_key::ApiSession;
 use crate::models::QueryParams;
@@ -134,6 +134,59 @@ async fn password_reset(request: HttpRequest, path: web::Path<String>, body: web
     ).await?;
     if result == 0 {
         return Err(AppError::NotFound("Identity not found".into()));
+    }
+
+    Ok(HttpResponse::Ok().json(result))
+}
+
+
+#[post("/create")]
+async fn create_identity(request: HttpRequest, body: web::Json<CreateIdentityRequest>, state: web::Data<AppState>) -> ApiResponse {
+    // Get SessionUser from request extensions
+    let ext = request.extensions();
+    let session_user = ext.get::<ApiSession>().unwrap();
+
+    // Check if the key has enough permissions to create identity information
+    session_user.has_permissions(&["identity:create"])?;
+
+    let create_request = body.into_inner();
+    create_request.validate()?;
+
+    // Validate the password also
+    let password_hasher = PasswordHasher {
+        encoded_password: create_request.encoded_password.clone(),
+    };
+    password_hasher.validate()?;
+
+    let bcrypt_hash = password_hasher.generate_bcrypt_hash();
+    let ssha1_hash = password_hasher.generate_ssha1_hash();
+
+    // Check if the session user has access to the domain of the identity being updated
+    let available_domains = get_available_domains(&state.pg_pool, &session_user.organization_id).await?;
+    if !available_domains.contains(&create_request.domain_name) {
+        return Err(AppError::Forbidden("Access to the specified domain is not allowed".into()));
+    }
+
+    let result = create_new_identity(
+        &state.pg_pool,
+        &session_user.organization_id,
+        &format!("{}@{}", create_request.email_prefix, create_request.domain_name).to_lowercase(),
+        &create_request.domain_name,
+        &create_request.first_name,
+        &create_request.last_name,
+        &create_request.primary_phone,
+        &create_request.secondary_email,
+        &bcrypt_hash,
+        &ssha1_hash,
+        create_request.is_app_2fa_enabled,
+        create_request.is_sms_2fa_enabled,
+        create_request.is_email_2fa_enabled,
+        &create_request.restriction_policy_id,
+        &create_request.department_id,
+        create_request.is_enabled,
+    ).await?;
+    if result == 0 {
+        return Err(AppError::Conflict("Failed to create identity".into()));
     }
 
     Ok(HttpResponse::Ok().json(result))

@@ -53,6 +53,29 @@ pub struct IdentityEditRequest {
 }
 
 
+#[derive(Deserialize)]
+pub struct CreateIdentityRequest {
+    pub email_prefix: String,
+    pub domain_name: String,
+
+    pub first_name: String,
+    pub last_name: Option<String>,
+    pub primary_phone: String,
+    pub secondary_email: Option<String>,
+
+    pub encoded_password: String,
+
+    pub is_app_2fa_enabled: bool,
+    pub is_sms_2fa_enabled: bool,
+    pub is_email_2fa_enabled: bool,
+
+    pub restriction_policy_id: Option<Uuid>,
+    pub department_id: Option<Uuid>,
+
+    pub is_enabled: bool,
+}
+
+
 // ------- Implementations ------- //
 
 
@@ -98,6 +121,12 @@ impl IdentityEditRequest {
         if self.primary_phone.trim().is_empty() {
             return Err(AppError::BadRequest("Primary phone cannot be empty".into()));
         }
+        if self.email.chars().any(|c| c.is_uppercase()) {
+            return Err(AppError::BadRequest("Email should not contain uppercase characters".into()));
+        }
+        if self.domain_name.chars().any(|c| c.is_uppercase()) {
+            return Err(AppError::BadRequest("Domain name should not contain uppercase characters".into()));
+        }
 
         // Check by splitting the email and checking the domain part
         if let Some(at_pos) = self.email.find('@') {
@@ -107,6 +136,46 @@ impl IdentityEditRequest {
             }
         } else {
             return Err(AppError::BadRequest("Invalid email format".into()));
+        }
+
+        Ok(())
+    }
+}
+
+
+impl CreateIdentityRequest {
+    pub fn validate(&self) -> Result<(), AppError> {
+        if self.encoded_password.trim().is_empty() {
+            return Err(AppError::BadRequest("Encoded password cannot be empty".into()));
+        }
+        if self.email_prefix.trim().is_empty() {
+            return Err(AppError::BadRequest("Email prefix cannot be empty".into()));
+        }
+        if self.domain_name.trim().is_empty() {
+            return Err(AppError::BadRequest("Domain name cannot be empty".into()));
+        }
+        if self.first_name.trim().is_empty() {
+            return Err(AppError::BadRequest("First name cannot be empty".into()));
+        }
+        if self.primary_phone.trim().is_empty() {
+            return Err(AppError::BadRequest("Primary phone cannot be empty".into()));
+        }
+        if self.email_prefix.contains("@") {
+            return Err(AppError::BadRequest("Email prefix should not contain '@'".into()));
+        }
+        if self.email_prefix.chars().any(|c| c.is_uppercase()) {
+            return Err(AppError::BadRequest("Email prefix should not contain uppercase characters".into()));
+        }
+        if self.domain_name.chars().any(|c| c.is_uppercase()) {
+            return Err(AppError::BadRequest("Domain name should not contain uppercase characters".into()));
+        }
+
+        // Build the full email address from the local part and domain name
+        let full_email = format!("{}@{}", self.email_prefix, self.domain_name);
+
+        // Check if the constructed full email is valid
+        if full_email.len() > 254 {
+            return Err(AppError::BadRequest("Constructed email is too long".into()));
         }
 
         Ok(())
