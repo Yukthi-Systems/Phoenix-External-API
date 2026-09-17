@@ -114,3 +114,60 @@ pub async fn get_org_identity(db_pool: &PgPool, org_id: &Uuid, email_id: &str) -
 
     Ok(row.map(IdentityInfo::from))
 }
+
+
+pub async fn update_identity_by_email(
+    db_pool: &PgPool,
+    email: &str,
+    domain_name: &str,
+    first_name: &str,
+    last_name: &Option<String>,
+    primary_phone: &str,
+    secondary_email: &Option<String>,
+    is_app_2fa_enabled: &bool,
+    is_sms_2fa_enabled: &bool,
+    is_email_2fa_enabled: &bool,
+    restriction_policy_id: &Option<Uuid>,
+    department_id: &Option<Uuid>,
+    is_enabled: &bool,
+) -> Result<u64, AppError> {
+    let client = db_pool.get().await?;
+
+    let result = client
+        .execute(
+            r#"
+            UPDATE email_identities
+            SET
+                first_name = $1,
+                last_name = $2,
+                primary_phone = $3,
+                secondary_email = $4,
+                is_app_2fa_enabled = $5,
+                is_sms_2fa_enabled = $6,
+                is_email_2fa_enabled = $7,
+                restriction_policy_id = $8,
+                department_id = $9,
+                is_enabled = $10,
+                updated_at = NOW()
+            WHERE email = $11
+            AND domain_name = $12
+            "#,
+            &[
+                &first_name,
+                last_name,
+                &primary_phone,
+                secondary_email,
+                is_app_2fa_enabled,
+                is_sms_2fa_enabled,
+                is_email_2fa_enabled,
+                restriction_policy_id,
+                department_id,
+                is_enabled,
+                &email,
+                &domain_name,
+            ],
+        )
+        .await?;
+
+    Ok(result)
+}

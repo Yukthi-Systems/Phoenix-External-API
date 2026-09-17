@@ -53,10 +53,9 @@ async fn main() -> std::io::Result<()> {
             .service(
                 actix_scope("/identity")
                 .wrap(from_fn(middleware::auth::auth_check))
-                // identity:view, create, edit, delete
                 .service(identity::list_identities)
                 // .service(identity::create_identity)
-                // .service(identity::update_identity)
+                .service(identity::update_identity)
                 // .service(identity::delete_identity)
                 .service(identity::get_identity)
             )

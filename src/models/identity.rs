@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize};
 use tokio_postgres::row::Row;
+use super::errors::AppError;
 use uuid::Uuid;
 
 
@@ -79,5 +80,35 @@ impl From<Row> for IdentityInfo {
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
         }
+    }
+}
+
+
+impl IdentityEditRequest {
+    pub fn validate(&self) -> Result<(), AppError> {
+        if self.email.trim().is_empty() {
+            return Err(AppError::BadRequest("Email cannot be empty".into()));
+        }
+        if self.domain_name.trim().is_empty() {
+            return Err(AppError::BadRequest("Domain name cannot be empty".into()));
+        }
+        if self.first_name.trim().is_empty() {
+            return Err(AppError::BadRequest("First name cannot be empty".into()));
+        }
+        if self.primary_phone.trim().is_empty() {
+            return Err(AppError::BadRequest("Primary phone cannot be empty".into()));
+        }
+
+        // Check by splitting the email and checking the domain part
+        if let Some(at_pos) = self.email.find('@') {
+            let email_domain = &self.email[at_pos + 1..];
+            if email_domain != self.domain_name {
+                return Err(AppError::BadRequest("Email domain does not match the specified domain name".into()));
+            }
+        } else {
+            return Err(AppError::BadRequest("Invalid email format".into()));
+        }
+
+        Ok(())
     }
 }
