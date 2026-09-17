@@ -1,4 +1,4 @@
-use routes::{health, session, organization, department};
+use routes::{health, session, organization, department, domains};
 use actix_web::web::scope as actix_scope;
 use actix_web::middleware::from_fn;
 use actix_web::{App, HttpServer};
@@ -43,14 +43,13 @@ async fn main() -> std::io::Result<()> {
                 .wrap(from_fn(middleware::auth::auth_check))
                 .service(organization::get_organization_info)
             )
-            // .service(
-            //     actix_scope("/domain")
-            //     .wrap(from_fn(middleware::auth::auth_check))
-            //     // domain:view, edit
-            //     // .service(domains::list_domains)
-            //     // .service(domains::edit_domain)
-            //     // .service(domains::get_domain)
-            // )
+            .service(
+                actix_scope("/domain")
+                .wrap(from_fn(middleware::auth::auth_check))
+                .service(domains::list_domains)
+                .service(domains::edit_domain)
+                .service(domains::get_domain)
+            )
             // .service(
             //     actix_scope("/identity")
             //     .wrap(from_fn(middleware::auth::auth_check))
@@ -76,7 +75,7 @@ async fn main() -> std::io::Result<()> {
             //     // mailbox:view, create, edit, delete
             //     // .service(mailbox::list_mailboxes)
             //     // .service(mailbox::create_mailbox)
-            //     // .service(mailbox::update_mailbox)
+            //     // .service(mailbox::update_mailbox) // PUT to the new endpoint quota update
             //     // .service(mailbox::delete_mailbox)
             //     // .service(mailbox::get_mailbox)
             // )
