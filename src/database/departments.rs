@@ -60,3 +60,21 @@ pub async fn get_department_details(db_pool: &PgPool, org_id: &Uuid, department_
 
     Ok(row.map(DepartmentInfo::from))
 }
+
+
+pub async fn delete_department_by_id(db_pool: &PgPool, org_id: &Uuid, department_id: &Uuid) -> Result<u64, AppError> {
+    let client = db_pool.get().await?;
+
+    let result = client
+        .execute(
+            r#"
+            DELETE FROM departments
+            WHERE organization_id = $1
+            AND department_id = $2
+            "#,
+            &[org_id, department_id],
+        )
+        .await?;
+
+    Ok(result)
+}

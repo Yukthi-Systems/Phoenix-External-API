@@ -64,11 +64,10 @@ async fn main() -> std::io::Result<()> {
             .service(
                 actix_scope("/department")
                 .wrap(from_fn(middleware::auth::auth_check))
-                // department:view, create, edit, delete
+                .service(department::get_department_info)
                 // .service(department::create_department)
                 // .service(department::update_department)
-                // .service(department::delete_department)
-                .service(department::get_department_info)
+                .service(department::delete_department)
                 .service(department::list_departments)
             )
             // .service(
