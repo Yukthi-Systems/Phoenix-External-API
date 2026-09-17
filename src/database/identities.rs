@@ -226,3 +226,28 @@ pub async fn delete_identity_by_email(db_pool: &PgPool, org_id: &Uuid, email_id:
 
     Ok(result)
 }
+
+
+pub async fn update_identity_password_by_email(db_pool: &PgPool, email: &str, org_id: &Uuid, bcrypt_hash: &str, ssha1_hash: &str) -> Result<u64, AppError> {
+    let client = db_pool.get().await?;
+
+    let result = client
+        .execute(
+            r#"
+            UPDATE email_identities
+            SET password_bcrypt = $1,
+                password_hash_ssha1 = $2,
+                updated_at = NOW(),
+                password_updated_at = NOW(),
+                is_password_expired = FALSE
+            FROM domains AS d
+            WHERE d.domain_name = email_identities.domain_name
+            AND d.managed_by = $3
+            AND email_identities.email = $4
+            "#,
+            &[&bcrypt_hash, &ssha1_hash, &org_id, &email],
+        )
+        .await?;
+
+    Ok(result)
+}

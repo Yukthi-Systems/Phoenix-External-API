@@ -1,8 +1,9 @@
-use crate::database::identities::{list_domain_identities, get_org_identity, update_identity_by_email, delete_identity_by_email};
-use actix_web::{HttpMessage, HttpRequest, HttpResponse, delete, get, patch, web};
+use crate::database::identities::{list_domain_identities, get_org_identity, update_identity_by_email, delete_identity_by_email, update_identity_password_by_email};
+use actix_web::{HttpMessage, HttpRequest, HttpResponse, delete, get, patch, put, web};
 use crate::database::domains::get_available_domains;
 use crate::models::errors::{ApiResponse, AppError};
 use crate::models::identity::IdentityEditRequest;
+use crate::handlers::auth::PasswordHasher;
 use crate::models::api_key::ApiSession;
 use crate::models::QueryParams;
 use crate::state::AppState;
@@ -100,6 +101,37 @@ async fn delete_identity(request: HttpRequest, path: web::Path<String>, state: w
 
     let email_id = path.into_inner();
     let result = delete_identity_by_email(&state.pg_pool, &session_user.organization_id, &email_id).await?;
+    if result == 0 {
+        return Err(AppError::NotFound("Identity not found".into()));
+    }
+
+    Ok(HttpResponse::Ok().json(result))
+}
+
+
+#[put("/update/password/{email_id}")]
+async fn password_reset(request: HttpRequest, path: web::Path<String>, body: web::Json<PasswordHasher>, state: web::Data<AppState>) -> ApiResponse {
+    // Get SessionUser from request extensions
+    let ext = request.extensions();
+    let session_user = ext.get::<ApiSession>().unwrap();
+
+    // Check if the key has enough permissions to update identity password
+    session_user.has_permissions(&["identity:edit"])?;
+
+    let email_id = path.into_inner();
+    let password_hasher = body.into_inner();
+    password_hasher.validate()?;
+
+    let bcrypt_hash = password_hasher.generate_bcrypt_hash();
+    let ssha1_hash = password_hasher.generate_ssha1_hash();
+
+    let result = update_identity_password_by_email(
+        &state.pg_pool,
+        &email_id,
+        &session_user.organization_id,
+        &bcrypt_hash,
+        &ssha1_hash,
+    ).await?;
     if result == 0 {
         return Err(AppError::NotFound("Identity not found".into()));
     }

@@ -18,12 +18,12 @@ pub enum AppError {
 
     Unauthorized(String),
     BadRequest(String),
-    NotImplemented(String),
+    // NotImplemented(String),
     Unprocessable(String),
     Forbidden(String),
     NotFound(String),
     Conflict(String),
-    Gone(String),
+    // Gone(String),
 }
 
 
@@ -46,11 +46,11 @@ impl fmt::Display for AppError {
             AppError::Unauthorized(s) => write!(f, "Unauthorized: {}", s),
             AppError::Reqwest(e) => write!(f, "Reqwest: {}", e),
             AppError::BadRequest(s) => write!(f, "Bad Request: {}", s),
-            AppError::NotImplemented(s) => write!(f, "Not Implemented: {}", s),
+            // AppError::NotImplemented(s) => write!(f, "Not Implemented: {}", s),
             AppError::NotFound(s) => write!(f, "Resource not found: {}", s),
             AppError::Conflict(s) => write!(f, "Conflict: {}", s),
             AppError::Forbidden(s) => write!(f, "Forbidden: {}", s),
-            AppError::Gone(s) => write!(f, "It's gone: {}", s),
+            // AppError::Gone(s) => write!(f, "It's gone: {}", s),
             AppError::Unprocessable(s) => write!(f, "Unprocessable: {}", s),
         }
     }
@@ -102,12 +102,12 @@ impl ResponseError for AppError {
             AppError::Reqwest(_) => StatusCode::BAD_GATEWAY,
             AppError::Unauthorized(_) => StatusCode::UNAUTHORIZED,
             AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
-            AppError::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
+            // AppError::NotImplemented(_) => StatusCode::NOT_IMPLEMENTED,
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
             AppError::Conflict(_) => StatusCode::CONFLICT,
             AppError::Unprocessable(_) => StatusCode::UNPROCESSABLE_ENTITY,
             AppError::Forbidden(_) => StatusCode::FORBIDDEN,
-            AppError::Gone(_) => StatusCode::GONE,
+            // AppError::Gone(_) => StatusCode::GONE,
         }
     }
 

@@ -7,7 +7,7 @@ use actix_cors::Cors;
 
 mod middleware;
 mod database;
-// mod handlers;
+mod handlers;
 mod models;
 mod routes;
 mod cache;
@@ -55,6 +55,7 @@ async fn main() -> std::io::Result<()> {
                 .wrap(from_fn(middleware::auth::auth_check))
                 .service(identity::list_identities)
                 // .service(identity::create_identity)
+                .service(identity::password_reset)
                 .service(identity::update_identity)
                 .service(identity::delete_identity)
                 .service(identity::get_identity)
