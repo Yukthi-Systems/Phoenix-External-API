@@ -1,4 +1,4 @@
-use crate::models::initial::{AppSettings, RedisSettings, PgSettings, RmqSettings, ApiSettings};
+use crate::models::initial::{AppSettings, RedisSettings, PgSettings, RmqSettings};
 use deadpool_postgres::{Manager, RecyclingMethod, Pool as PgPool};
 use redis::{Client, aio::MultiplexedConnection};
 use deadpool::{managed::Timeouts, Runtime};
@@ -13,11 +13,6 @@ pub struct AppState {
     pub pg_pool: PgPool,
     pub redis_cache: MultiplexedConnection,
 }
-
-
-pub static API_SETTINGS: LazyLock<ApiSettings> = LazyLock::new(|| {
-    ApiSettings::from_env()
-});
 
 
 pub static RMQ_SETTINGS: LazyLock<RmqSettings> = LazyLock::new(|| {
@@ -108,18 +103,6 @@ async fn init_redis(redis_settings: &RedisSettings) -> MultiplexedConnection {
     }
 
     conn
-}
-
-
-pub fn cors_allowed_origin_fn(origin: &actix_web::http::header::HeaderValue, _: &actix_web::dev::RequestHead) -> bool {
-    let origin_str = origin.to_str().unwrap_or("");
-    let allowed_origins = &API_SETTINGS.allowed_origins;
-
-    if allowed_origins.iter().any(|item| item == "*") {
-        return true;
-    }
-
-    allowed_origins.iter().any(|item| item == origin_str)
 }
 
 
