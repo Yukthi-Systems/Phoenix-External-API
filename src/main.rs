@@ -1,4 +1,4 @@
-use routes::{health, session, organization, department, domains};
+use routes::{health, session, organization, department, domains, identity};
 use actix_web::web::scope as actix_scope;
 use actix_web::middleware::from_fn;
 use actix_web::{App, HttpServer};
@@ -50,16 +50,16 @@ async fn main() -> std::io::Result<()> {
                 .service(domains::edit_domain)
                 .service(domains::get_domain)
             )
-            // .service(
-            //     actix_scope("/identity")
-            //     .wrap(from_fn(middleware::auth::auth_check))
-            //     // identity:view, create, edit, delete
-            //     // .service(identity::list_identities)
-            //     // .service(identity::create_identity)
-            //     // .service(identity::update_identity)
-            //     // .service(identity::delete_identity)
-            //     // .service(identity::get_identity)
-            // )
+            .service(
+                actix_scope("/identity")
+                .wrap(from_fn(middleware::auth::auth_check))
+                // identity:view, create, edit, delete
+                .service(identity::list_identities)
+                // .service(identity::create_identity)
+                // .service(identity::update_identity)
+                // .service(identity::delete_identity)
+                .service(identity::get_identity)
+            )
             .service(
                 actix_scope("/department")
                 .wrap(from_fn(middleware::auth::auth_check))

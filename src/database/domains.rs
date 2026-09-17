@@ -124,3 +124,23 @@ pub async fn update_domain_by_name(
 
     Ok(result)
 }
+
+
+pub async fn get_available_domains(db_pool: &PgPool, org_id: &Uuid) -> Result<Vec<String>, AppError> {
+    let client = db_pool.get().await?;
+
+    let rows = client
+        .query(
+            r#"
+            SELECT domain_name
+            FROM domains
+            WHERE managed_by = $1
+            AND is_active = true
+            AND is_dns_txt_verified = true
+            "#,
+            &[org_id],
+        )
+        .await?;
+
+    Ok(rows.iter().map(|row| row.get("domain_name")).collect())
+}

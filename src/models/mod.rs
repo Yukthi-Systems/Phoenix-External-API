@@ -2,6 +2,7 @@ use crate::models::errors::AppError;
 use tokio_postgres::row::Row;
 
 pub mod departments;
+pub mod identity;
 pub mod initial;
 pub mod api_key;
 pub mod domain;
