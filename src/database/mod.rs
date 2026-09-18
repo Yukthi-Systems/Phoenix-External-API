@@ -6,6 +6,7 @@ use crate::models::api_key::ApiSession;
 
 pub mod departments;
 pub mod identities;
+pub mod mailboxes;
 pub mod domains;
 pub mod orgs;
 
