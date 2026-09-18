@@ -66,9 +66,20 @@ impl OrgInfo {
         }
 
         // Check if the organization has enough quota to create a new mailbox
+        self.check_quota(quota_required)?;
+
+        Ok(())
+    }
+
+    pub fn check_quota(&self, quota_required: f64) -> Result<(), AppError> {
+        // That means no additional quota is required it will be added back to the available quota
+        if quota_required <= 0.0 {
+            return Ok(());
+        }
+
         let available_quota = self.quota_allocated - self.quota_utilized;
         if available_quota < quota_required {
-            return Err(AppError::BadRequest("Insufficient quota to create a new mailbox".into()));
+            return Err(AppError::BadRequest("Insufficient quota".into()));
         }
 
         Ok(())

@@ -161,3 +161,56 @@ pub async fn create_new_mailbox(
 
     Ok(result)
 }
+
+
+pub async fn update_mailbox_quota(
+    db_pool: &PgPool,
+    org_id: &Uuid,
+    email: &str,
+    new_quota_allocated: f64,
+    required_new_quota: f64,
+) -> Result<u64, AppError> {
+    let mut client = db_pool.get().await?;
+    let txn = client.transaction().await?;
+
+    let server_id = txn
+        .query_one(
+            r#"
+            SELECT server_id FROM mailboxes WHERE email = $1
+            "#,
+            &[&email],
+        )
+        .await?
+        .get::<_, Uuid>(0);
+
+    txn.execute(
+        r#"
+        UPDATE mailboxes
+        SET quota_allocated = $1::DOUBLE PRECISION
+        WHERE email = $2
+        "#,
+        &[&new_quota_allocated, &email],
+    )
+    .await?;
+
+    txn.execute(
+        r#"
+        UPDATE organizations SET quota_utilized = quota_utilized + $1::DOUBLE PRECISION WHERE organization_id = $2
+        "#,
+        &[&required_new_quota, &org_id],
+    )
+    .await?;
+
+    let result = txn
+        .execute(
+            r#"
+            UPDATE servers SET quota_utilized = quota_utilized + $1::DOUBLE PRECISION WHERE server_id = $2
+            "#,
+            &[&required_new_quota, &server_id],
+        )
+        .await?;
+
+    txn.commit().await?;
+
+    Ok(result)
+}

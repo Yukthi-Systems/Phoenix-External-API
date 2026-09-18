@@ -72,12 +72,12 @@ async fn main() -> std::io::Result<()> {
             .service(
                 actix_scope("/mailbox")
                 .wrap(from_fn(middleware::auth::auth_check))
+                .service(mailbox::create_mailbox)
                 .service(mailbox::list_mailboxes)
                 .service(mailbox::update_mailbox)
+                .service(mailbox::quota_update)
                 .service(mailbox::get_mailbox)
-                .service(mailbox::create_mailbox)
                 // .service(mailbox::delete_mailbox)
-                // .service(mailbox::quota_update)
             )
     })
     .bind(("0.0.0.0", 8686))?
