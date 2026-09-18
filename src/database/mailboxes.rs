@@ -214,3 +214,58 @@ pub async fn update_mailbox_quota(
 
     Ok(result)
 }
+
+
+pub async fn delete_mailbox_with_quota(
+    db_pool: &PgPool,
+    org_id: &Uuid,
+    email: &str,
+) -> Result<Uuid, AppError> {
+    let mut client = db_pool.get().await?;
+    let txn = client.transaction().await?;
+
+    let row = txn
+        .query_opt(
+            r#"
+            SELECT server_id, quota_allocated::DOUBLE PRECISION FROM mailboxes WHERE email = $1
+            "#,
+            &[&email],
+        )
+        .await?;
+
+    if row.is_none() {
+        return Err(AppError::NotFound("Mailbox not found".into()));
+    }
+    let row = row.unwrap();
+
+    let server_id: Uuid = row.get("server_id");
+    let quota_allocated: f64 = row.get("quota_allocated");
+
+    txn.execute(
+        r#"
+        DELETE FROM mailboxes WHERE email = $1
+        "#,
+        &[&email],
+    )
+    .await?;
+
+    txn.execute(
+        r#"
+        UPDATE organizations SET quota_utilized = quota_utilized - $1::DOUBLE PRECISION WHERE organization_id = $2
+        "#,
+        &[&quota_allocated, &org_id],
+    )
+    .await?;
+
+    txn.execute(
+        r#"
+        UPDATE servers SET quota_utilized = quota_utilized - $1::DOUBLE PRECISION WHERE server_id = $2
+        "#,
+        &[&quota_allocated, &server_id],
+    )
+    .await?;
+
+    txn.commit().await?;
+
+    Ok(server_id)
+}

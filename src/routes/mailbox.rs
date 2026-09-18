@@ -1,9 +1,9 @@
-use crate::database::mailboxes::{list_domain_mailboxes, get_org_mailbox, update_mailbox_info, create_new_mailbox, update_mailbox_quota};
+use crate::database::mailboxes::{list_domain_mailboxes, get_org_mailbox, update_mailbox_info, create_new_mailbox, update_mailbox_quota, delete_mailbox_with_quota};
 use crate::models::mailbox::{MailBoxEditRequest, MailBoxCreateRequest, MailBoxQuotaUpdateRequest};
-use actix_web::{HttpMessage, HttpRequest, HttpResponse, get, patch, post, put, web};
+use actix_web::{HttpMessage, HttpRequest, HttpResponse, delete, get, patch, post, put, web};
 use crate::database::domains::get_available_domains;
 use crate::models::errors::{ApiResponse, AppError};
-use crate::handlers::assign_new_mailbox_server;
+use crate::handlers::{assign_new_mailbox_server, delete_mailbox_from_server};
 use crate::database::orgs::get_org_info;
 use crate::models::api_key::ApiSession;
 use crate::models::QueryParams;
@@ -189,4 +189,28 @@ pub async fn quota_update(request: HttpRequest, quota_request: web::Json<MailBox
     }
 
     Ok(HttpResponse::Ok().json(result))
+}
+
+
+#[delete("/delete/{domain_name}/{email_prefix}")]
+pub async fn delete_mailbox(request: HttpRequest, path: web::Path<(String, String)>, state: web::Data<AppState>) -> ApiResponse {
+    // Get SessionUser from request extensions
+    let ext = request.extensions();
+    let session_user = ext.get::<ApiSession>().unwrap();
+
+    let (domain_name, email_prefix) = path.into_inner();
+    let email = format!("{}@{}", email_prefix, domain_name);
+
+    // Check if the session user has access to the specified domain
+    let available_domains = get_available_domains(&state.pg_pool, &session_user.organization_id).await?;
+    if !available_domains.contains(&domain_name) {
+        return Err(AppError::Forbidden("Access to the specified domain is not allowed".into()));
+    }
+
+    // Call the database function to delete the mailbox
+    let server_id = delete_mailbox_with_quota(&state.pg_pool, &session_user.organization_id, &email).await?;
+
+    tokio::spawn(delete_mailbox_from_server(email_prefix, domain_name, server_id));
+
+    Ok(HttpResponse::Ok().finish())
 }
