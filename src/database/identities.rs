@@ -1,40 +1,10 @@
 use crate::models::identity::IdentityInfo;
-use deadpool_postgres::{Client, Pool as PgPool};
+use deadpool_postgres::Pool as PgPool;
 use crate::models::errors::AppError;
 use crate::models::ListResponse;
 use uuid::Uuid;
 
 
-
-// -- E-Mail ID's - Users
-// CREATE TABLE email_identities (
-//     email VARCHAR(254) PRIMARY KEY,
-//     domain_name VARCHAR(254) NOT NULL REFERENCES domains(domain_name) ON DELETE CASCADE,
-
-//     first_name TEXT NOT NULL,
-//     last_name TEXT,
-//     primary_phone VARCHAR(20) NOT NULL, -- Used for 2FA/recovery/notifications
-//     secondary_email VARCHAR(254),   -- Used for 2FA/recovery/notifications
-
-//     password_hash_ssha1 TEXT NOT NULL,
-//     password_bcrypt TEXT NOT NULL,
-
-//     is_app_2fa_enabled BOOLEAN DEFAULT FALSE NOT NULL,  -- Is app-based 2FA enabled
-//     is_sms_2fa_enabled BOOLEAN DEFAULT FALSE NOT NULL,  -- Is SMS-based 2FA enabled
-//     is_email_2fa_enabled BOOLEAN DEFAULT FALSE NOT NULL,  -- Is Email-based 2FA enabled
-//     -- TODO: Add a TOTP and Backup Codes too
-
-//     restriction_policy_id UUID REFERENCES restriction_policies(policy_id) ON DELETE SET NULL,
-//     department_id UUID REFERENCES departments(department_id) ON DELETE SET NULL,
-
-//     is_password_expired BOOLEAN DEFAULT FALSE NOT NULL,
-//     is_enabled BOOLEAN DEFAULT TRUE NOT NULL,
-
-//     password_updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
-
-//     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
-//     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
-// );
 
 pub async fn list_domain_identities(db_pool: &PgPool, domain_name: &str, limit: i64, offset: i64) -> Result<ListResponse<IdentityInfo>, AppError> {
     let client = db_pool.get().await?;
