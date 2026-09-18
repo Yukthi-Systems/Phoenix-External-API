@@ -75,7 +75,7 @@ async fn main() -> std::io::Result<()> {
                 .service(mailbox::list_mailboxes)
                 .service(mailbox::update_mailbox)
                 .service(mailbox::get_mailbox)
-                // .service(mailbox::create_mailbox)
+                .service(mailbox::create_mailbox)
                 // .service(mailbox::delete_mailbox)
                 // .service(mailbox::quota_update)
             )

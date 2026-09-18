@@ -3,8 +3,8 @@ use serde::Serialize;
 use reqwest::Client;
 
 
-/// Function to send notification to RabbitMQ using HTTP API
-pub async fn send_notification_to_rmq<T>(notification_type: &str, payload: &T) -> Result<(), Box<dyn std::error::Error>>
+/// Function to send message to RabbitMQ using HTTP API
+pub async fn send_mailbox_message_to_rmq<T>(message_type: &str, payload: &T) -> Result<(), Box<dyn std::error::Error>>
     where
         T: Serialize,
 {
@@ -26,10 +26,10 @@ pub async fn send_notification_to_rmq<T>(notification_type: &str, payload: &T) -
             "properties": {
                 "delivery_mode": 2,
                 "headers": {
-                    "type": notification_type
+                    "type": message_type
                 }
             },
-            "routing_key": RMQ_SETTINGS.routing_key,
+            "routing_key": RMQ_SETTINGS.mailbox_mgr_queue,
             "delivery_mode": "2",
             "payload": serde_json::to_string(payload)?,
             "payload_encoding": "string",

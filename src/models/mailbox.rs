@@ -32,6 +32,17 @@ pub struct MailBoxEditRequest {
 }
 
 
+#[derive(Deserialize)]
+pub struct MailBoxCreateRequest {
+    pub email: String,
+    pub domain_name: String,
+    pub forwarding_policy_id: Option<Uuid>,
+    pub distribution_policy_id: Option<Uuid>,
+    pub general_policy_id: Option<Uuid>,
+    pub quota_allocated: f64,
+}
+
+
 // ------- Implementations ------- //
 
 
@@ -66,6 +77,31 @@ impl MailBoxEditRequest {
         if email_parts.len() != 2 || email_parts[1] != self.domain_name {
             return Err(AppError::BadRequest("Email must match the domain name".into()));
         }
+        Ok(())
+    }
+}
+
+
+impl MailBoxCreateRequest {
+    pub fn validate(&self) -> Result<(), AppError> {
+        if self.email.trim().is_empty() {
+            return Err(AppError::BadRequest("Email cannot be empty".into()));
+        }
+        if self.domain_name.trim().is_empty() {
+            return Err(AppError::BadRequest("Domain name cannot be empty".into()));
+        }
+
+        // Make sure the email is in a valid format and exactly matches the domain name
+        let email_parts: Vec<&str> = self.email.split('@').collect();
+        if email_parts.len() != 2 || email_parts[1] != self.domain_name {
+            return Err(AppError::BadRequest("Email must match the domain name".into()));
+        }
+
+        // Check if the quota allocated is a positive number
+        if self.quota_allocated < 0.1 {
+            return Err(AppError::BadRequest("Quota allocated must be a positive number greater than 0.1".into()));
+        }
+
         Ok(())
     }
 }

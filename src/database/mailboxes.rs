@@ -99,3 +99,65 @@ pub async fn update_mailbox_info(
 
     Ok(result)
 }
+
+
+pub async fn create_new_mailbox(
+    db_pool: &PgPool,
+    email: &str,
+    domain_name: &str,
+    org_id: &Uuid,
+    forwarding_policy_id: Option<Uuid>,
+    distribution_policy_id: Option<Uuid>,
+    general_policy_id: Option<Uuid>,
+    quota_allocated: f64,
+) -> Result<u64, AppError> {
+    let default_server_id: Uuid = Uuid::parse_str("0d069ed3-daaa-534f-9d2d-bd6c34503b84").unwrap();
+
+    let mut client = db_pool.get().await?;
+
+    let txn = client.transaction().await?;
+
+    // First create a new mailbox in the mailboxes table
+    txn.execute(
+        r#"
+        INSERT INTO mailboxes (
+            email,
+            domain_name,
+            is_enabled,
+            quota_allocated,
+            quota_utilized_bytes,
+            server_id,
+            general_policy_id,
+            forwarding_policy_id,
+            distribution_policy_id
+        )
+        VALUES ($1, $2, $3, $4::DOUBLE PRECISION, $5, $6, $7, $8, $9)
+        "#,
+        &[
+            &email,
+            &domain_name,
+            &false,
+            &quota_allocated,
+            &0i64,
+            &default_server_id,
+            &general_policy_id,
+            &forwarding_policy_id,
+            &distribution_policy_id,
+        ],
+    )
+    .await?;
+
+    // Then update the organization's quota utilization
+    let result = txn
+        .execute(
+            r#"
+            UPDATE organizations SET quota_utilized = quota_utilized + $1::DOUBLE PRECISION WHERE organization_id = $2
+            "#,
+            &[&quota_allocated, &org_id],
+        )
+        .await?;
+
+    txn.commit().await?;
+
+    Ok(result)
+}

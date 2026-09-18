@@ -1,4 +1,5 @@
 use tokio_postgres::row::Row;
+use super::errors::AppError;
 use serde::Serialize;
 use uuid::Uuid;
 
@@ -48,5 +49,28 @@ impl From<Row> for OrgInfo {
 
             created_at: row.get("created_at"),
         }
+    }
+}
+
+
+impl OrgInfo {
+    pub fn can_create_new_mailbox(&self, quota_required: f64) -> Result<(), AppError> {
+        // Check if the Org has Mail Service enabled
+        if !self.email_service_enabled {
+            return Err(AppError::Forbidden("Email service is not enabled for this organization".into()));
+        }
+
+        // Check its active status
+        if !self.is_active {
+            return Err(AppError::Forbidden("Organization is not active".into()));
+        }
+
+        // Check if the organization has enough quota to create a new mailbox
+        let available_quota = self.quota_allocated - self.quota_utilized;
+        if available_quota < quota_required {
+            return Err(AppError::BadRequest("Insufficient quota to create a new mailbox".into()));
+        }
+
+        Ok(())
     }
 }
