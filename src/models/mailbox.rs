@@ -21,6 +21,17 @@ pub struct MailBoxInfo {
 }
 
 
+#[derive(Deserialize)]
+pub struct MailBoxEditRequest {
+    pub email: String,
+    pub domain_name: String,
+    pub is_enabled: bool,
+    pub forwarding_policy_id: Option<Uuid>,
+    pub distribution_policy_id: Option<Uuid>,
+    pub general_policy_id: Option<Uuid>,
+}
+
+
 // ------- Implementations ------- //
 
 
@@ -37,5 +48,24 @@ impl From<Row> for MailBoxInfo {
             quota_utilized_bytes: row.get("quota_utilized_bytes"),
             total_messages_count: row.get("total_messages_count"),
         }
+    }
+}
+
+
+impl MailBoxEditRequest {
+    pub fn validate(&self) -> Result<(), AppError> {
+        if self.email.trim().is_empty() {
+            return Err(AppError::BadRequest("Email cannot be empty".into()));
+        }
+        if self.domain_name.trim().is_empty() {
+            return Err(AppError::BadRequest("Domain name cannot be empty".into()));
+        }
+
+        // Make sure the email is in a valid format and exactly matches the domain name
+        let email_parts: Vec<&str> = self.email.split('@').collect();
+        if email_parts.len() != 2 || email_parts[1] != self.domain_name {
+            return Err(AppError::BadRequest("Email must match the domain name".into()));
+        }
+        Ok(())
     }
 }

@@ -70,3 +70,32 @@ pub async fn get_org_mailbox(db_pool: &PgPool, org_id: &Uuid, email_id: &str) ->
 
     Ok(row.map(MailBoxInfo::from))
 }
+
+
+pub async fn update_mailbox_info(
+    db_pool: &PgPool,
+    email: &str,
+    is_enabled: bool,
+    forwarding_policy_id: Option<Uuid>,
+    distribution_policy_id: Option<Uuid>,
+    general_policy_id: Option<Uuid>,
+) -> Result<u64, AppError> {
+    let client = db_pool.get().await?;
+
+    let result = client
+        .execute(
+            r#"
+            UPDATE mailboxes
+            SET
+                is_enabled = $1,
+                forwarding_policy_id = $2,
+                distribution_policy_id = $3,
+                general_policy_id = $4
+            WHERE email = $5
+            "#,
+            &[&is_enabled, &forwarding_policy_id, &distribution_policy_id, &general_policy_id, &email],
+        )
+        .await?;
+
+    Ok(result)
+}
