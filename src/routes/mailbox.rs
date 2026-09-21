@@ -198,6 +198,9 @@ pub async fn delete_mailbox(request: HttpRequest, path: web::Path<(String, Strin
     let ext = request.extensions();
     let session_user = ext.get::<ApiSession>().unwrap();
 
+    // Check if the key has enough permissions to update mailbox quota
+    session_user.has_permissions(&["mailbox:delete"])?;
+
     let (domain_name, email_prefix) = path.into_inner();
     let email = format!("{}@{}", email_prefix, domain_name);
 
