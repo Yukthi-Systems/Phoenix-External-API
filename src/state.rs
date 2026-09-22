@@ -1,11 +1,32 @@
+/*
+ * Copyright (C) 2026 Yukthi Systems Private Limited
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 3
+ * as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * version 3 along with this program. If not, see
+ * <https://www.gnu.org/licenses/>.
+ */
+
+
 use crate::models::initial::{AppSettings, RedisSettings, PgSettings, RmqSettings};
 use deadpool_postgres::{Manager, RecyclingMethod, Pool as PgPool};
 use redis::{Client, aio::MultiplexedConnection};
+use native_tls::{Certificate, TlsConnector};
 use deadpool::{managed::Timeouts, Runtime};
+use postgres_native_tls::MakeTlsConnector;
 use actix_web::web::Data as webData;
-use tokio_postgres::{Config, NoTls};
+use tokio_postgres::Config;
 use std::sync::LazyLock;
 use std::time::Duration;
+use std::fs;
 
 
 
@@ -61,12 +82,45 @@ fn build_pg_config(settings: &PgSettings) -> Config {
 }
 
 
+fn tls_builder_from_settings(settings: &PgSettings) -> TlsConnector {
+    log::info!("Postgres SSL settings: accept_invalid_certs={}, accept_invalid_hostnames={}, root_cert_path={:?}",
+        settings.ssl_accept_invalid_certs,
+        settings.ssl_accept_invalid_hostnames,
+        settings.ssl_root_cert_path
+    );
+
+    // Build a TLS connector based on the provided settings
+    let mut tls_builder = TlsConnector::builder();
+    
+    // Configure the TLS connector to accept or reject invalid certificates and hostnames based on the settings
+    tls_builder.danger_accept_invalid_certs(settings.ssl_accept_invalid_certs);
+    tls_builder.danger_accept_invalid_hostnames(settings.ssl_accept_invalid_hostnames);
+
+    // If a root certificate path is provided, read the certificate and add it to the TLS connector
+    if let Some(cert_path) = &settings.ssl_root_cert_path {
+        let cert_data = fs::read(cert_path)
+            .unwrap_or_else(|err| panic!("failed to read PG_SSL_ROOT_CERT_PATH at {}: {}", cert_path, err));
+        let cert = Certificate::from_pem(&cert_data)
+            .unwrap_or_else(|err| panic!("invalid PEM certificate at PG_SSL_ROOT_CERT_PATH ({}): {}", cert_path, err));
+        tls_builder.add_root_certificate(cert);
+    }
+
+    // Build the TLS connector and return it, panicking if the build fails
+    tls_builder.build().expect("failed to build postgres TLS connector")
+}
+
+
 fn init_pg_pool(pg_settings: &PgSettings) -> PgPool {
     // Get the Postgres base configuration
     let cfg: Config = build_pg_config(pg_settings);
+
+    // Build a TLS connector so sslmode from the connection URL can be honored.
+    // This supports both SSL and non-SSL URLs while avoiding hardcoded NoTls.
+    let tls = MakeTlsConnector::new(tls_builder_from_settings(pg_settings));
+
     let mgr = Manager::from_config(
         cfg,
-        NoTls,
+        tls,
         deadpool_postgres::ManagerConfig {
             recycling_method: RecyclingMethod::Fast,
         },
